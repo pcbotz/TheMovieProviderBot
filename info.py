@@ -55,9 +55,12 @@ DATABASE_NAME = environ.get('DATABASE_NAME', "cluster0")
 COLLECTION_NAME = environ.get('COLLECTION_NAME', 'Telegram_files')
 
 # Verify
-VERIFY = bool(environ.get('VERIFY', False)) # Verification On ( True ) / Off ( False )
-HOWTOVERIFY = environ.get('HOWTOVERIFY', url='https://t.me/pcott') # How to open tutorial link for verification
-
+'''VERIFY = bool(environ.get('VERIFY', False)) # Verification On ( True ) / Off ( False )
+HOWTOVERIFY = environ.get('HOWTOVERIFY', url='https://t.me/pcott') # How to open tutorial link for verification'''
+# ha la 
+DEFAULT_VERIFY_URL = 'https://t.me/pcott'
+HOWTOVERIFY = environ.get('HOWTOVERIFY', DEFAULT_VERIFY_URL)  # No keyword argument
+#ha la
 # Others
 SHORTLINK_URL = environ.get('SHORTLINK_URL', 'instantearn.in')
 SHORTLINK_API = environ.get('SHORTLINK_API', '1502a197c85d59929d50f1cba1d5e6f967d1e962')
