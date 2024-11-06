@@ -58,6 +58,7 @@ COLLECTION_NAME = environ.get('COLLECTION_NAME', 'Telegram_files')
 '''VERIFY = bool(environ.get('VERIFY', False)) # Verification On ( True ) / Off ( False )
 HOWTOVERIFY = environ.get('HOWTOVERIFY', url='https://t.me/pcott') # How to open tutorial link for verification'''
 # ha la 
+VERIFY = bool(environ.get('VERIFY', False))
 DEFAULT_VERIFY_URL = 'https://t.me/pcott'
 HOWTOVERIFY = environ.get('HOWTOVERIFY', DEFAULT_VERIFY_URL)  # No keyword argument
 #ha la
