@@ -56,7 +56,7 @@ COLLECTION_NAME = environ.get('COLLECTION_NAME', 'Telegram_files')
 
 # Verify
 VERIFY = bool(environ.get('VERIFY', False)) # Verification On ( True ) / Off ( False )
-HOWTOVERIFY = environ.get('HOWTOVERIFY', url='https://t.me/') # How to open tutorial link for verification
+HOWTOVERIFY = environ.get('HOWTOVERIFY', url='https://t.me/pcott') # How to open tutorial link for verification
 
 # Others
 SHORTLINK_URL = environ.get('SHORTLINK_URL', 'instantearn.in')
@@ -66,13 +66,13 @@ DELETE_CHANNELS = [int(dch) if id_pattern.search(dch) else dch for dch in enviro
 MAX_B_TN = environ.get("MAX_B_TN", "5")
 MAX_BTN = is_enabled((environ.get('MAX_BTN', "True")), True)
 PORT = environ.get("PORT", "8080")
-GRP_LNK = environ.get('GRP_LNK', 'https://t.me/')
-CHNL_LNK = environ.get('CHNL_LNK', 'https://t.me/')
-TUTORIAL = environ.get('TUTORIAL', 'https://t.me/') # Tutorial video link for opening shortlink website 
+GRP_LNK = environ.get('GRP_LNK', 'https://t.me/pcmoviesgroup')
+CHNL_LNK = environ.get('CHNL_LNK', 'https://t.me/pcott')
+TUTORIAL = environ.get('TUTORIAL', 'https://t.me/pcott') # Tutorial video link for opening shortlink website 
 IS_TUTORIAL = bool(environ.get('IS_TUTORIAL', True))
 MSG_ALRT = environ.get('MSG_ALRT', 'ᴍᴀɪɴᴛᴀɪɴᴇᴅ ʙʏ : ʜᴘ')
-LOG_CHANNEL = int(environ.get('LOG_CHANNEL', '')) #Log channel id ( make sure bot is admin )
-SUPPORT_CHAT = environ.get('SUPPORT_CHAT', 'https://t.me/') #Support group link ( make sure bot is admin )
+LOG_CHANNEL = int(environ.get('LOG_CHANNEL', '-1002113853127')) #Log channel id ( make sure bot is admin )
+SUPPORT_CHAT = environ.get('SUPPORT_CHAT', 'https://t.me/pcmoviesgroup') #Support group link ( make sure bot is admin )
 P_TTI_SHOW_OFF = is_enabled((environ.get('P_TTI_SHOW_OFF', "False")), False)
 IMDB = is_enabled((environ.get('IMDB', "False")), False)
 AUTO_FFILTER = is_enabled((environ.get('AUTO_FFILTER', "True")), True)
@@ -122,12 +122,12 @@ else:
     ON_HEROKU = False
 HAS_SSL=bool(getenv('HAS_SSL',True))
 if HAS_SSL:
-    URL = "https://{}/".format(FQDN)
+    URL = "https://social-ellen-hjmjuhvyguk-25a49df7.koyeb.app/".format(FQDN)
 else:
-    URL = "http://{}/".format(FQDN)
+    URL = "https://social-ellen-hjmjuhvyguk-25a49df7.koyeb.app/".format(FQDN)
 
 # add premium logs channel id
-PREMIUM_LOGS = int(environ.get('PREMIUM_LOGS', ''))
+PREMIUM_LOGS = int(environ.get('PREMIUM_LOGS', '-1002113853127'))
 
 LOG_STR = "Current Cusomized Configurations are:-\n"
 LOG_STR += ("IMDB Results are enabled, Bot will be showing imdb details for you queries.\n" if IMDB else "IMBD Results are disabled.\n")
