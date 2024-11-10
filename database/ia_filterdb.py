@@ -1,24 +1,40 @@
 import logging
-from struct import pack
 import re
 import base64
+from struct import pack
 from pyrogram.file_id import FileId
 from pymongo.errors import DuplicateKeyError
 from umongo import Instance, Document, fields
 from motor.motor_asyncio import AsyncIOMotorClient
 from marshmallow.exceptions import ValidationError
-from info import DATABASE_URI, DATABASE_NAME, COLLECTION_NAME, USE_CAPTION_FILTER, MAX_B_TN
+from info import DATABASE_URI_1, DATABASE_URI_2, DATABASE_URI_3, DATABASE_URI_4, DATABASE_NAME, COLLECTION_NAME, USE_CAPTION_FILTER, MAX_B_TN
 from utils import get_settings, save_group_settings
+from itertools import cycle
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+# Initialize connections to each database
+client_1 = AsyncIOMotorClient(DATABASE_URI_1)
+client_2 = AsyncIOMotorClient(DATABASE_URI_2)
+client_3 = AsyncIOMotorClient(DATABASE_URI_3)
+client_4 = AsyncIOMotorClient(DATABASE_URI_4)
 
-client = AsyncIOMotorClient(DATABASE_URI)
-db = client[DATABASE_NAME]
-instance = Instance.from_db(db)
+# Cycle through clients to balance load across databases
+db_cycle = cycle([client_1[DATABASE_NAME], client_2[DATABASE_NAME], client_3[DATABASE_NAME], client_4[DATABASE_NAME]])
 
-@instance.register
+# Define umongo instances for each database
+instance_1 = Instance.from_db(client_1[DATABASE_NAME])
+instance_2 = Instance.from_db(client_2[DATABASE_NAME])
+instance_3 = Instance.from_db(client_3[DATABASE_NAME])
+instance_4 = Instance.from_db(client_4[DATABASE_NAME])
+
+instances = [instance_1, instance_2, instance_3, instance_4]  # List of instances to rotate
+
+@instance_1.register
+@instance_2.register
+@instance_3.register
+@instance_4.register
 class Media(Document):
     file_id = fields.StrField(attribute='_id')
     file_ref = fields.StrField(allow_none=True)
@@ -32,14 +48,17 @@ class Media(Document):
         indexes = ('$file_name', )
         collection_name = COLLECTION_NAME
 
-
 async def save_file(media):
-    """Save file in database"""
+    """Save file across multiple databases in a round-robin manner"""
+    current_db = next(db_cycle)
+    current_instance = instances[db_cycle.index(current_db)]
 
-    # TODO: Find better way to get same file_id for same media to avoid duplicates
+    # Extract file details
     file_id, file_ref = unpack_new_file_id(media.file_id)
     file_name = re.sub(r"(_|\-|\.|\+)", " ", str(media.file_name))
+
     try:
+        # Create Media document
         file = Media(
             file_id=file_id,
             file_ref=file_ref,
@@ -48,6 +67,7 @@ async def save_file(media):
             file_type=media.file_type,
             mime_type=media.mime_type,
             caption=media.caption.html if media.caption else None,
+            instance=current_instance
         )
     except ValidationError:
         logger.exception('Error occurred while saving file in database')
@@ -55,141 +75,46 @@ async def save_file(media):
     else:
         try:
             await file.commit()
-        except DuplicateKeyError:      
-            logger.warning(
-                f'{getattr(media, "file_name", "NO_FILE")} is already saved in database'
-            )
-
+        except DuplicateKeyError:
+            logger.warning(f'{getattr(media, "file_name", "NO_FILE")} is already saved in database')
             return False, 0
         else:
             logger.info(f'{getattr(media, "file_name", "NO_FILE")} is saved to database')
             return True, 1
 
-
-
 async def get_search_results(chat_id, query, file_type=None, max_results=10, offset=0, filter=False):
-    """For given query return (results, next_offset)"""
+    """For given query, return (results, next_offset)"""
     if chat_id is not None:
         settings = await get_settings(int(chat_id))
-        try:
-            if settings['max_btn']:
-                max_results = 10
-            else:
-                max_results = int(MAX_B_TN)
-        except KeyError:
-            await save_group_settings(int(chat_id), 'max_btn', False)
-            settings = await get_settings(int(chat_id))
-            if settings['max_btn']:
-                max_results = 10
-            else:
-                max_results = int(MAX_B_TN)
+        max_results = 10 if settings.get('max_btn') else int(MAX_B_TN)
+
     query = query.strip()
-    #if filter:
-        #better ?
-        #query = query.replace(' ', r'(\s|\.|\+|\-|_)')
-        #raw_pattern = r'(\s|_|\-|\.|\+)' + query + r'(\s|_|\-|\.|\+)'
-    if not query:
-        raw_pattern = '.'
-    elif ' ' not in query:
-        raw_pattern = r'(\b|[\.\+\-_])' + query + r'(\b|[\.\+\-_])'
-    else:
-        raw_pattern = query.replace(' ', r'.*[\s\.\+\-_]')
+    raw_pattern = r'(\b|[\.\+\-_])' + query + r'(\b|[\.\+\-_])' if ' ' not in query else query.replace(' ', r'.*[\s\.\+\-_]')
     
     try:
         regex = re.compile(raw_pattern, flags=re.IGNORECASE)
     except:
         return []
 
-    if USE_CAPTION_FILTER:
-        filter = {'$or': [{'file_name': regex}, {'caption': regex}]}
-    else:
-        filter = {'file_name': regex}
-
+    search_filter = {'$or': [{'file_name': regex}, {'caption': regex}]} if USE_CAPTION_FILTER else {'file_name': regex}
     if file_type:
-        filter['file_type'] = file_type
+        search_filter['file_type'] = file_type
 
-    total_results = await Media.count_documents(filter)
-    next_offset = offset + max_results
+    results, total_results = [], 0
+    for instance in instances:
+        media_collection = instance.db[COLLECTION_NAME]
+        total_results += await media_collection.count_documents(search_filter)
+        
+        cursor = media_collection.find(search_filter)
+        cursor.sort('$natural', -1)
+        cursor.skip(offset).limit(max_results)
+        files = await cursor.to_list(length=max_results)
+        results.extend(files)
 
-    if next_offset > total_results:
-        next_offset = ''
+    next_offset = offset + max_results if total_results > offset + max_results else ''
+    return results, next_offset, total_results
 
-    cursor = Media.find(filter)
-    # Sort by recent
-    cursor.sort('$natural', -1)
-    # Slice files according to offset and max results
-    cursor.skip(offset).limit(max_results)
-    # Get list of files
-    files = await cursor.to_list(length=max_results)
-
-    return files, next_offset, total_results
-
-async def get_bad_files(query, file_type=None, filter=False):
-    """For given query return (results, next_offset)"""
-    query = query.strip()
-    #if filter:
-        #better ?
-        #query = query.replace(' ', r'(\s|\.|\+|\-|_)')
-        #raw_pattern = r'(\s|_|\-|\.|\+)' + query + r'(\s|_|\-|\.|\+)'
-    if not query:
-        raw_pattern = '.'
-    elif ' ' not in query:
-        raw_pattern = r'(\b|[\.\+\-_])' + query + r'(\b|[\.\+\-_])'
-    else:
-        raw_pattern = query.replace(' ', r'.*[\s\.\+\-_]')
-    
-    try:
-        regex = re.compile(raw_pattern, flags=re.IGNORECASE)
-    except:
-        return []
-
-    if USE_CAPTION_FILTER:
-        filter = {'$or': [{'file_name': regex}, {'caption': regex}]}
-    else:
-        filter = {'file_name': regex}
-
-    if file_type:
-        filter['file_type'] = file_type
-
-    total_results = await Media.count_documents(filter)
-
-    cursor = Media.find(filter)
-    # Sort by recent
-    cursor.sort('$natural', -1)
-    # Get list of files
-    files = await cursor.to_list(length=total_results)
-
-    return files, total_results
-
-async def get_file_details(query):
-    filter = {'file_id': query}
-    cursor = Media.find(filter)
-    filedetails = await cursor.to_list(length=1)
-    return filedetails
-
-
-def encode_file_id(s: bytes) -> str:
-    r = b""
-    n = 0
-
-    for i in s + bytes([22]) + bytes([4]):
-        if i == 0:
-            n += 1
-        else:
-            if n:
-                r += b"\x00" + bytes([n])
-                n = 0
-
-            r += bytes([i])
-
-    return base64.urlsafe_b64encode(r).decode().rstrip("=")
-
-
-def encode_file_ref(file_ref: bytes) -> str:
-    return base64.urlsafe_b64encode(file_ref).decode().rstrip("=")
-
-
-def unpack_new_file_id(new_file_id):
+async def unpack_new_file_id(new_file_id):
     """Return file_id, file_ref"""
     decoded = FileId.decode(new_file_id)
     file_id = encode_file_id(
@@ -203,3 +128,23 @@ def unpack_new_file_id(new_file_id):
     )
     file_ref = encode_file_ref(decoded.file_reference)
     return file_id, file_ref
+
+
+# Define encoding helpers
+def encode_file_id(s: bytes) -> str:
+    r = b""
+    n = 0
+    for i in s + bytes([22]) + bytes([4]):
+        if i == 0:
+            n += 1
+        else:
+            if n:
+                r += b"\x00" + bytes([n])
+                n = 0
+            r += bytes([i])
+    return base64.urlsafe_b64encode(r).decode().rstrip("=")
+
+def encode_file_ref(file_ref: bytes) -> str:
+    return base64.urlsafe_b64encode(file_ref).decode().rstrip("=")
+
+
