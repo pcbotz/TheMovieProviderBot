@@ -50,9 +50,35 @@ SUPPORT_CHAT_ID = int(support_chat_id) if support_chat_id and id_pattern.search(
 NO_RESULTS_MSG = bool(environ.get("NO_RESULTS_MSG", False)) # True if you want no results messages in Log Channel
 
 # MongoDB information
-DATABASE_URI = environ.get('DATABASE_URI', "mongodb+srv://cluster0:cluster0@cluster0.hejxw.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
+'''DATABASE_URI = environ.get('DATABASE_URI', "mongodb+srv://cluster0:cluster0@cluster0.hejxw.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
 DATABASE_NAME = environ.get('DATABASE_NAME', "cluster0")
-COLLECTION_NAME = environ.get('COLLECTION_NAME', 'Telegram_files')
+COLLECTION_NAME = environ.get('COLLECTION_NAME', 'Telegram_files')'''
+# MongoDB information for multiple databases
+DATABASE_URIS = {
+    "DB1": environ.get('DATABASE_URI_1', "mongodb+srv://cluster0:cluster0@cluster0.hejxw.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"),
+    "DB2": environ.get('DATABASE_URI_2', "mongodb+srv://cluster1:cluster1@cluster1.hejxw.mongodb.net/?retryWrites=true&w=majority&appName=Cluster1"),
+    "DB3": environ.get('DATABASE_URI_3', "mongodb+srv://cluster2:cluster2@cluster2.hejxw.mongodb.net/?retryWrites=true&w=majority&appName=Cluster2"),
+    "DB4": environ.get('DATABASE_URI_4', "mongodb+srv://cluster3:cluster3@cluster3.hejxw.mongodb.net/?retryWrites=true&w=majority&appName=Cluster3"),
+    "DB5": environ.get('DATABASE_URI_5', "mongodb+srv://cluster4:cluster4@cluster4.hejxw.mongodb.net/?retryWrites=true&w=majority&appName=Cluster4")
+}
+
+DATABASE_NAMES = {
+    "DB1": environ.get('DATABASE_NAME_1', "cluster0"),
+    "DB2": environ.get('DATABASE_NAME_2', "cluster1"),
+    "DB3": environ.get('DATABASE_NAME_3', "cluster2"),
+    "DB4": environ.get('DATABASE_NAME_4', "cluster3"),
+    "DB5": environ.get('DATABASE_NAME_5', "cluster4")
+}
+
+# Collection names for each database
+COLLECTION_NAMES = {
+    "DB1": environ.get('COLLECTION_NAME_1', 'Telegram_files'),
+    "DB2": environ.get('COLLECTION_NAME_2', 'Telegram_files'),
+    "DB3": environ.get('COLLECTION_NAME_3', 'Telegram_files'),
+    "DB4": environ.get('COLLECTION_NAME_4', 'Telegram_files'),
+    "DB5": environ.get('COLLECTION_NAME_5', 'Telegram_files')
+}
+
 
 # Verify
 '''VERIFY = bool(environ.get('VERIFY', False)) # Verification On ( True ) / Off ( False )
